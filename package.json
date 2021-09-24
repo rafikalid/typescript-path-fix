@@ -1,0 +1,36 @@
+{
+	"name": "typescript-path-fix",
+	"version": "1.0.0",
+	"description": "Convert typescript paths starting with \"@\" to relative paths",
+	"main": "dist/commonjs/index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/rafikalid/typescript-path-fix.git"
+	},
+	"keywords": [
+		"typescript",
+		"relative",
+		"path"
+	],
+	"author": "khalid RAFIK",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/rafikalid/typescript-path-fix/issues"
+	},
+	"homepage": "https://github.com/rafikalid/typescript-path-fix#readme",
+	"devDependencies": {
+		"@types/gulp": "^4.0.8",
+		"@types/gulp-rename": "^2.0.1",
+		"@types/gulp-sourcemaps": "0.0.34",
+		"@types/through2": "^2.0.36",
+		"gulp": "^4.0.2",
+		"gulp-sourcemaps": "^3.0.0",
+		"gulp-typescript": "^6.0.0-alpha.1",
+		"typescript": "^4.3.5",
+		"gulp-rename": "^2.0.0"
+	},
+	"dependencies": {}
+}
