@@ -2,30 +2,29 @@ import { readFileSync, statSync } from 'fs';
 import ts from 'typescript';
 import Through from 'through2';
 import Vinyl from 'vinyl';
-import Path from 'path';
-const { resolve, dirname, relative } = Path.posix;
+import { resolve, dirname, relative, sep as PathSep } from 'path';
+const isWindows= PathSep==='\\';
 
 export class Converter {
 	#tsConfig: ts.CompilerOptions;
 	#paths: Map<string, string> = new Map();
+	#targetExt: TargetExtension;
+	/** Target extension */
 	/**
 	 * @param tsConfig - Compiler options or tsconfig filepath
 	 */
-	constructor(tsConfig: ts.CompilerOptions | string) {
+	constructor(tsConfig: ts.CompilerOptions | string, targetExt: TargetExtension= '.js') {
 		// Resolve tsConfig
-		var tsconfigDir = process.cwd();
 		if (typeof tsConfig === 'string') {
-			tsConfig = resolve(tsconfigDir, tsConfig);
-			tsconfigDir = dirname(tsConfig);
+			tsConfig = resolve(tsConfig);
 			tsConfig = _parseTsConfig(tsConfig);
 		}
-		console.log('--tsconfigDir:', tsconfigDir);
 		this.#tsConfig = tsConfig;
+		this.#targetExt= targetExt;
 		// Map paths
-		const baseDir =
+		const baseDir =resolve(
 			typeof tsConfig.baseUrl === 'string'
-				? resolve(tsConfig.baseUrl, tsconfigDir)
-				: tsconfigDir;
+				? tsConfig.baseUrl : '.');
 		const paths = tsConfig.paths ?? {};
 		var pathMap = this.#paths;
 		for (let k in paths) {
@@ -36,17 +35,18 @@ export class Converter {
 				);
 			// remove trailing slash
 			k = k.replace(/\/\*?$/, '');
-			pathMap.set(k, resolve(v[0].replace(/\/\*?$/, ''), baseDir));
+			pathMap.set(k, resolve(baseDir, v[0].replace(/\/\*?$/, '')));
 		}
 	}
 
 	/** Convert file */
-	convert(fileName: string, contents?: Buffer | string): string {
-		return _resolvePaths(this.#tsConfig, this.#paths, fileName, contents);
+	convert(filePath: string, contents?: Buffer | string, targetExt?: TargetExtension): string {
+		return _resolvePaths(this.#tsConfig, this.#paths, targetExt ?? this.#targetExt, filePath, contents);
 	}
 
 	/** gulp Adapter */
-	gulp() {
+	gulp(targetExt?: TargetExtension) {
+		targetExt??= this.#targetExt;
 		return Through.obj(
 			(file: Vinyl, _: any, cb: Through.TransformCallback) => {
 				let ext = file.extname;
@@ -62,7 +62,8 @@ export class Converter {
 						let content = _resolvePaths(
 							this.#tsConfig,
 							this.#paths,
-							file.basename,
+							targetExt!,
+							file.path,
 							file.contents as Buffer | undefined
 						);
 						file.contents = Buffer.from(content);
@@ -74,25 +75,29 @@ export class Converter {
 	}
 }
 
+/** Target extensions */
+export type TargetExtension= '.js'|'.mjs'|'.cjs';
+
 /** Resolve paths */
 function _resolvePaths(
 	compilerOptions: ts.CompilerOptions,
 	paths: Map<string, string>,
-	fileName: string,
+	targetExt: TargetExtension,
+	filePath: string,
 	content?: Buffer | string
 ) {
 	// Resolve content
-	if (content == null) content = readFileSync(fileName, 'utf-8');
+	if (content == null) content = readFileSync(filePath, 'utf-8');
 	else if (typeof content === 'string') {
 	} else content = content.toString('utf-8');
 	// Create AST
 	var srcFile = ts.createSourceFile(
-		fileName,
+		filePath,
 		content,
 		compilerOptions.target ?? ts.ScriptTarget.Latest,
 		true
 	);
-	const _dirname = dirname(fileName);
+	const _dirname = dirname(filePath);
 	const f = ts.factory;
 	const replacerRegex = /^(@[^\/\\'"`]+)/;
 	srcFile = ts.transform(srcFile, [_trans]).transformed[0] as ts.SourceFile;
@@ -136,7 +141,7 @@ function _resolvePaths(
 				//* Dynamic import
 				if (node.arguments.length !== 1)
 					throw new Error(
-						`Dynamic import must have one specifier as an argument at ${fileName}: ${node.getText()}`
+						`Dynamic import must have one specifier as an argument at ${filePath}: ${node.getText()}`
 					);
 				var expr: ts.Expression = node.arguments[0];
 				if (ts.isStringLiteral(expr)) {
@@ -168,24 +173,24 @@ function _resolvePaths(
 	}
 	/** Resolve path */
 	function _resolvePath(path: string) {
-		console.log('====', path);
 		// Remove quotes, parsing using JSON.parse fails on simple quoted strings
 		//TODO find better solution to parse string
-		path = path.slice(1, path.length - 1);
+		path = path.slice(1, - 1);
 		// replace @specifier
 		let startsWithAt;
 		if ((startsWithAt = path.charAt(0) === '@') || path.charAt(0) === '.') {
 			// get absolute path
 			if (startsWithAt) path = path.replace(replacerRegex, _replaceCb);
-			else path = resolve(path, _dirname);
+			else path = resolve(_dirname, path);
 			// check file exists
 			path = _resolveFilePath(path);
 			// create relative path to current file
 			path = relative(_dirname, path);
+			// Replace windows antislashes
+			if(isWindows) path= path.replace(/\\/g, '/');
 			// Add prefix "./"
 			if (path.charAt(0) === '/') path = '.' + path;
 			else if (path.charAt(0) !== '.') path = './' + path;
-			console.log('-->', path);
 		}
 		return path;
 	}
@@ -195,21 +200,23 @@ function _resolvePaths(
 	}
 	// Resolve file path
 	function _resolveFilePath(path: string) {
-		try {
-			if (statSync(path).isDirectory()) path = resolve('index.js', path);
-		} catch (e) {
+		// Check if directory
+		try{
+			// If isnt directory, we will not change it's extension
+			if (statSync(path).isDirectory()) path = resolve(path, 'index'+targetExt);
+		}catch(err){
 			try {
-				if (statSync(path + '.ts').isFile()) path += '.js';
+				if (statSync(path + '.ts').isFile()) path += targetExt;
 			} catch (e) {
-				try {
-					if (
-						!path.endsWith('.js') &&
-						statSync(path + '.js').isFile()
-					)
-						path += '.js';
-				} catch (e) {
+				// try {
+				// 	if (
+				// 		-!path.endsWith('.js') &&
+				// 		statSync(path + '.js').isFile()
+				// 	)
+				// 		path += '.js';
+				// } catch (e) {
 					console.error(e);
-				}
+				// }
 			}
 		}
 		return path;
