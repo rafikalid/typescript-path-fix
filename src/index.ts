@@ -66,7 +66,12 @@ export class Converter {
 							file.path,
 							file.contents as Buffer | undefined
 						);
-						file.contents = Buffer.from(content);
+						file= new Vinyl({
+							path:	file.path,
+							base:	file.base,
+							cwd:	file.cwd,
+							contents: Buffer.from(content)
+						});
 					}
 				}
 				cb(null, file);
