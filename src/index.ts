@@ -3,7 +3,7 @@ import ts from 'typescript';
 import Through from 'through2';
 import Vinyl from 'vinyl';
 import { resolve, dirname, relative, sep as PathSep } from 'path';
-const isWindows= PathSep==='\\';
+const isWindows = PathSep === '\\';
 
 export class Converter {
 	#tsConfig: ts.CompilerOptions;
@@ -13,18 +13,21 @@ export class Converter {
 	/**
 	 * @param tsConfig - Compiler options or tsconfig filepath
 	 */
-	constructor(tsConfig: ts.CompilerOptions | string, targetExt: TargetExtension= '.js') {
+	constructor(
+		tsConfig: ts.CompilerOptions | string,
+		targetExt: TargetExtension = '.js'
+	) {
 		// Resolve tsConfig
 		if (typeof tsConfig === 'string') {
 			tsConfig = resolve(tsConfig);
 			tsConfig = _parseTsConfig(tsConfig);
 		}
 		this.#tsConfig = tsConfig;
-		this.#targetExt= targetExt;
+		this.#targetExt = targetExt;
 		// Map paths
-		const baseDir =resolve(
-			typeof tsConfig.baseUrl === 'string'
-				? tsConfig.baseUrl : '.');
+		const baseDir = resolve(
+			typeof tsConfig.baseUrl === 'string' ? tsConfig.baseUrl : '.'
+		);
 		const paths = tsConfig.paths ?? {};
 		var pathMap = this.#paths;
 		for (let k in paths) {
@@ -40,17 +43,27 @@ export class Converter {
 	}
 
 	/** Convert file */
-	convert(filePath: string, contents?: Buffer | string, targetExt?: TargetExtension): string {
-		return _resolvePaths(this.#tsConfig, this.#paths, targetExt ?? this.#targetExt, filePath, contents);
+	convert(
+		filePath: string,
+		contents?: Buffer | string,
+		targetExt?: TargetExtension
+	): string {
+		return _resolvePaths(
+			this.#tsConfig,
+			this.#paths,
+			targetExt ?? this.#targetExt,
+			filePath,
+			contents
+		);
 	}
 
 	/** gulp Adapter */
 	gulp(targetExt?: TargetExtension) {
-		targetExt??= this.#targetExt;
+		targetExt ??= this.#targetExt;
 		return Through.obj(
 			(file: Vinyl, _: any, cb: Through.TransformCallback) => {
 				let ext = file.extname;
-				if (ext === '.ts' || ext === '.tsx') {
+				if (ext === '.ts' || ext === '.tsx' || ext === '.js') {
 					// generate model
 					if (file.isStream())
 						cb(
@@ -66,10 +79,10 @@ export class Converter {
 							file.path,
 							file.contents as Buffer | undefined
 						);
-						file= new Vinyl({
-							path:	file.path,
-							base:	file.base,
-							cwd:	file.cwd,
+						file = new Vinyl({
+							path: file.path,
+							base: file.base,
+							cwd: file.cwd,
 							contents: Buffer.from(content)
 						});
 					}
@@ -81,7 +94,7 @@ export class Converter {
 }
 
 /** Target extensions */
-export type TargetExtension= '.js'|'.mjs'|'.cjs';
+export type TargetExtension = '.js' | '.mjs' | '.cjs';
 
 /** Resolve paths */
 function _resolvePaths(
@@ -180,7 +193,7 @@ function _resolvePaths(
 	function _resolvePath(path: string) {
 		// Remove quotes, parsing using JSON.parse fails on simple quoted strings
 		//TODO find better solution to parse string
-		path = path.slice(1, - 1);
+		path = path.slice(1, -1);
 		// replace @specifier
 		let startsWithAt;
 		if ((startsWithAt = path.charAt(0) === '@') || path.charAt(0) === '.') {
@@ -192,7 +205,7 @@ function _resolvePaths(
 			// create relative path to current file
 			path = relative(_dirname, path);
 			// Replace windows antislashes
-			if(isWindows) path= path.replace(/\\/g, '/');
+			if (isWindows) path = path.replace(/\\/g, '/');
 			// Add prefix "./"
 			if (path.charAt(0) === '/') path = '.' + path;
 			else if (path.charAt(0) !== '.') path = './' + path;
@@ -206,10 +219,11 @@ function _resolvePaths(
 	// Resolve file path
 	function _resolveFilePath(path: string) {
 		// Check if directory
-		try{
+		try {
 			// If isnt directory, we will not change it's extension
-			if (statSync(path).isDirectory()) path = resolve(path, 'index'+targetExt);
-		}catch(err){
+			if (statSync(path).isDirectory())
+				path = resolve(path, 'index' + targetExt);
+		} catch (err) {
 			try {
 				if (statSync(path + '.ts').isFile()) path += targetExt;
 			} catch (e) {
@@ -220,7 +234,7 @@ function _resolvePaths(
 				// 	)
 				// 		path += '.js';
 				// } catch (e) {
-					console.error(e);
+				console.error(e);
 				// }
 			}
 		}
