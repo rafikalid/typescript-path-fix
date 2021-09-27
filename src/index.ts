@@ -234,7 +234,7 @@ function _resolvePaths(
 				// 	)
 				// 		path += '.js';
 				// } catch (e) {
-				console.error(e);
+				console.error(err);
 				// }
 			}
 		}
