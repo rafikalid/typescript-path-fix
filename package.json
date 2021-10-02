@@ -1,6 +1,6 @@
 {
 	"name": "typescript-path-fix",
-	"version": "1.0.4",
+	"version": "1.0.6",
 	"description": "Convert typescript paths starting with \"@\" to relative paths",
 	"main": "dist/commonjs/index.js",
 	"exports": {
