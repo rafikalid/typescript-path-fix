@@ -63,7 +63,14 @@ export class Converter {
 		return Through.obj(
 			(file: Vinyl, _: any, cb: Through.TransformCallback) => {
 				let ext = file.extname;
-				if (ext === '.ts' || ext === '.tsx' || ext === '.js' || ext === '.jsx') {
+				if (
+					ext === '.ts' ||
+					ext === '.tsx' ||
+					ext === '.js' ||
+					ext === '.jsx' ||
+					ext === '.mjs' ||
+					ext === '.cjs'
+				) {
 					// generate model
 					if (file.isStream())
 						cb(
