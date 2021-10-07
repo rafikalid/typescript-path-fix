@@ -6,6 +6,7 @@ import GulpTypescript from 'gulp-typescript';
 import SrcMap from 'gulp-sourcemaps';
 import ts from 'typescript';
 import GulpRename from 'gulp-rename';
+import { minifyJs } from './minifyjs';
 
 const { src, dest, lastRun } = Gulp;
 
@@ -30,24 +31,26 @@ const TsProjectCommonjs = GulpTypescript.createProject('tsconfig.json', {
 // import babel from 'gulp-babel';
 
 export function typescriptCompile() {
-	return src('src/**/*.ts', {
+	var glp: NodeJS.ReadWriteStream = src('src/**/*.ts', {
 		nodir: true,
 		since: lastRun(typescriptCompile)
 	})
 		.pipe(SrcMap.init())
 		.pipe(TsProject())
-		.pipe(GulpRename({ extname: '.mjs' }))
-		.pipe(SrcMap.write('.'))
+		.pipe(GulpRename({ extname: '.mjs' }));
+	if (isProd) glp = glp.pipe(minifyJs());
+	return glp.pipe(SrcMap.write('.'))
 		.pipe(dest('dist/module'));
 }
 
 export function CompileTsCommonJs() {
-	return src('src/**/*.ts', {
+	var glp: NodeJS.ReadWriteStream = src('src/**/*.ts', {
 		nodir: true,
 		since: lastRun(typescriptCompile)
 	})
 		.pipe(SrcMap.init())
-		.pipe(TsProjectCommonjs())
-		.pipe(SrcMap.write('.'))
+		.pipe(TsProjectCommonjs());
+	if (isProd) glp = glp.pipe(minifyJs());
+	return glp.pipe(SrcMap.write('.'))
 		.pipe(dest('dist/commonjs'));
 }
