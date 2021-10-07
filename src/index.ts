@@ -63,7 +63,14 @@ export class Converter {
 		return Through.obj(
 			(file: Vinyl, _: any, cb: Through.TransformCallback) => {
 				let ext = file.extname;
-				if (ext === '.ts' || ext === '.tsx' || ext === '.js') {
+				if (
+					ext === '.ts' ||
+					ext === '.tsx' ||
+					ext === '.js' ||
+					ext === '.jsx' ||
+					ext === '.mjs' ||
+					ext === '.cjs'
+				) {
 					// generate model
 					if (file.isStream())
 						cb(
@@ -261,7 +268,7 @@ function _parseTsConfig(tsConfigPath: string) {
 	if (tsP2.errors?.length)
 		throw new Error(
 			'Config file parse fails:' +
-				tsP2.errors.map(e => e.messageText.toString())
+			tsP2.errors.map(e => e.messageText.toString())
 		);
 	return tsP2.options;
 }
